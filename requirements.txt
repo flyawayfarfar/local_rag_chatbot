@@ -1,0 +1,12 @@
+fastapi
+uvicorn[standard]
+langchain
+langchain-community
+chromadb
+openai
+sentence-transformers
+tiktoken
+pydantic
+pydantic-settings
+python-dotenv
+pip-tools

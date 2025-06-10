@@ -1,0 +1,8 @@
+Project Alpha Overview
+
+Project Alpha is a secure, on-premise knowledge management system designed for regulated industries like finance and healthcare.
+
+Key Features:
+- Local LLM support
+- Role-based access control
+- PDF, Markdown, HTML ingestion
