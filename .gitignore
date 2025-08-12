@@ -2,3 +2,4 @@
 chroma_db/
 venv/
 env/
+/app/__pycache__/*.pyc
