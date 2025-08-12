@@ -1,5 +1,4 @@
-# local_rag_chatbot/app/build_index.py
-
+# app/build_index.py
 from app.rag_pipeline import build_vector_store
 
 if __name__ == "__main__":

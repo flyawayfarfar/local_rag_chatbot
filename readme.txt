@@ -23,6 +23,6 @@
 	# should get: {"status":"ok"}
 
 	# Test chat 
-	curl -X POST http://127.0.0.1:8000/chat -H "Content-Type: application/json" -d "{\"query\":\"What is RAG?\"}"
+	curl -X POST http://127.0.0.1:8000/chat -H "Content-Type: application/json" -d "{\"query\":\"What Project Alpha?\"}"
 	# {"answer":" RAG stands for \"Retrieval-Augmented Generation\" and is a technique used in natural language processing to generate text responses based on retrieved information. It is often used in chatbots and other AI systems."}
 	

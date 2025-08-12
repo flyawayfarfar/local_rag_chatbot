@@ -1,59 +1,61 @@
 # app/main.py
-
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-
-# community imports
-from langchain_community.embeddings import OpenAIEmbeddings
-from langchain_community.vectorstores import Chroma
-from langchain_community.llms import OpenAI
-
-# core chain stays in langchain
-from langchain.chains import RetrievalQA
-
 from app.config import settings
 
-app = FastAPI(title="On-Prem RAG Chatbot")
+from langchain_community.vectorstores import Chroma
+from langchain.chains import RetrievalQA
 
-# (optional) allow CORS for browser demos
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Embeddings (must match what was used to build the index)
+if settings.use_local_embeddings:
+    from langchain_community.embeddings import OllamaEmbeddings
+    EMBEDDINGS = OllamaEmbeddings(
+        model=settings.ollama_embed_model,
+        base_url=settings.ollama_base_url
+    )
+else:
+    from langchain_community.embeddings import OpenAIEmbeddings
+    EMBEDDINGS = OpenAIEmbeddings(openai_api_key=settings.openai_api_key)
+
+# LLM (Ollama vs OpenAI)
+if settings.use_local_llm:
+    from langchain_community.llms import Ollama
+    LLM = Ollama(model=settings.ollama_model, base_url=settings.ollama_base_url, temperature=0.1)
+else:
+    from langchain_community.llms import OpenAI
+    LLM = OpenAI(temperature=0.1)
 
 class ChatRequest(BaseModel):
     query: str
+    k: int | None = None
 
-@app.on_event("startup")
-def load_resources():
-    # config
-    api_key     = settings.openai_api_key
-    chroma_dir  = settings.chroma_dir
-    k_neighbors = settings.k_neighbors
-
-    # embeddings & vector store
-    embed_model  = OpenAIEmbeddings(openai_api_key=api_key)
-    vector_store = Chroma(
-        persist_directory=chroma_dir,
-        embedding_function=embed_model,
+def make_chain(k_neighbors: int) -> RetrievalQA:
+    db = Chroma(
+        persist_directory=settings.chroma_dir,
+        embedding_function=EMBEDDINGS,
+        collection_name="local-rag"
     )
-
-    # LLM (you can swap to a local model via your factory)
-    llm = OpenAI(openai_api_key=api_key, temperature=0.2)
-
-    # RetrievalQA chain
-    retriever = vector_store.as_retriever(search_kwargs={"k": k_neighbors})
+    retriever = db.as_retriever(search_kwargs={"k": k_neighbors})
     qa = RetrievalQA.from_chain_type(
-        llm=llm,
+        llm=LLM,
         chain_type="stuff",
         retriever=retriever,
-        return_source_documents=False,
+        return_source_documents=True  # helpful for debugging/citations
     )
+    return qa
 
-    app.state.qa = qa
+app = FastAPI(title="Local RAG (Ollama + Chroma)")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], allow_credentials=True,
+    allow_methods=["*"], allow_headers=["*"],
+)
+
+# Build chain once at startup
+@app.on_event("startup")
+def _startup():
+    app.state.qa = make_chain(settings.k_neighbors)
 
 @app.get("/health")
 async def health():
@@ -62,7 +64,21 @@ async def health():
 @app.post("/chat")
 async def chat(req: ChatRequest):
     try:
-        answer = await app.state.qa.arun(req.query)
-        return {"answer": answer}
-    except Exception:
-        raise HTTPException(status_code=500, detail="Internal error")
+        k = req.k or settings.k_neighbors
+        # Adjust retriever K per-request when needed
+        if k != settings.k_neighbors:
+            app.state.qa = make_chain(k)
+
+        result = app.state.qa.invoke({"query": req.query})
+        # Format sources as a list of file paths
+        sources = []
+        for d in result.get("source_documents", []):
+            src = d.metadata.get("source", "unknown")
+            if src not in sources:
+                sources.append(src)
+        return {
+            "answer": result.get("result", "").strip(),
+            "sources": sources
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal error: {e}")
