@@ -2,11 +2,11 @@ fastapi
 uvicorn[standard]
 langchain
 langchain-community
-chromadb
 openai
-sentence-transformers
 tiktoken
-pydantic
 pydantic-settings
-python-dotenv
 pip-tools
+chromadb==0.5.*
+pydantic>=2
+python-dotenv
+sentence-transformers

@@ -10,6 +10,8 @@ class Settings(BaseSettings):
     # Data / Vector DB
     data_dir:              str  = "data"
     chroma_dir:            str  = "chroma_db"
+    chroma_dir_local: str = "chroma_db_ollama"
+    chroma_dir_openai: str = "chroma_db_openai"
     k_neighbors:           int  = 5
 
     # Ollama
@@ -23,4 +25,8 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
 
+    @property
+    def active_chroma_dir(self) -> str:
+        return self.chroma_dir_local if self.use_local_embeddings else self.chroma_dir_openai
+    
 settings = Settings()

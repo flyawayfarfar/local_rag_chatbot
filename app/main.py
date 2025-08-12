@@ -32,7 +32,8 @@ class ChatRequest(BaseModel):
 
 def make_chain(k_neighbors: int) -> RetrievalQA:
     db = Chroma(
-        persist_directory=settings.chroma_dir,
+        # persist_directory=settings.chroma_dir,
+        persist_directory=settings.active_chroma_dir,
         embedding_function=EMBEDDINGS,
         collection_name="local-rag"
     )

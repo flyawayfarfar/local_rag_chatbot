@@ -84,7 +84,8 @@ def build_vector_store() -> Chroma:
     vectordb = Chroma.from_documents(
         documents=chunks,
         embedding=embeddings,
-        persist_directory=settings.chroma_dir,
+        # persist_directory=settings.chroma_dir,
+        persist_directory=settings.active_chroma_dir,
         collection_name="local-rag"
     )
     vectordb.persist()
